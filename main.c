@@ -30,7 +30,7 @@ static void usage() {
 "usage: dm3tool [options] inputfile.dm3\n"
 "\n"
 "options:\n"
-"  -o FILE  write image data to FILE\n"
+//"  -o FILE  write image data to FILE\n"  // Not implemented.
 "  -d       dump file tree to stdout\n"
 "  -v       verbose output\n"
           );
