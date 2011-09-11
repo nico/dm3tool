@@ -56,8 +56,10 @@ static uint32_t dump_dm3_tag_group(
     struct DM3Image* dm3, struct DM3TagGroup* tags);
 
 // Returns the size of |def|.
+// |def_len|: (in) Number of elements in |def|.
+//            (out) Number of elements read from |def|.
 static uint32_t dump_dm3_data_definition(
-    struct DM3Image* dm3, DM3uint32 def[], DM3uint32 def_len) {
+    struct DM3Image* dm3, DM3uint32 def[], DM3uint32* def_len) {
   DM3uint32 def0 = dm3_uint32(dm3, def[0]);
   static const char const* def_names[] = {
     "unknown 0",
@@ -91,38 +93,46 @@ static uint32_t dump_dm3_data_definition(
   if (def0 == DM3_DEF_STRUCT) {
     uint32_t size = 0;
     //DM3uint32 struct_name_len = dm3_uint32(dm3, def[1]);
+    DM3uint32 struct_def_len = 3;
     DM3uint32 struct_field_count = dm3_uint32(dm3, def[2]);
     printf("struct with %d fields: {\n", struct_field_count);
     for (int i = 0; i < struct_field_count; ++i) {
-      DM3uint32 field_type= dm3_uint32(dm3, def[4 + 2 * i]);
+      DM3uint32 field_type = dm3_uint32(dm3, def[4 + 2 * i]);
+      DM3uint32 field_def_len = *def_len - 4 - 2 * i;
       if (field_type > DM3_DEF_OCTET)
         fatal("TODO: Implement complex structs\n");
       
       printf("  ");
       size += dump_dm3_data_definition(
-          dm3, def + 4 + 2 * i, def_len - 4 - 2 * i);
+          dm3, def + 4 + 2 * i, &field_def_len);
+      struct_def_len += field_def_len + 1;  // 1 for field name.
     }
     printf("}\n");
+    *def_len = struct_def_len;
     return size;
   } else if (def0 == DM3_DEF_STRING) {
     DM3uint32 str_len;
-    if (def_len != 2)
-      fatal("Unexpected string def_len %d\n", def_len);
+    if (*def_len != 2)
+      fatal("Unexpected string def_len %d\n", *def_len);
     str_len = dm3_uint32(dm3, def[1]);
     printf("String of length %d\n", str_len);
     return 2 * str_len;
   } else if (def0 == DM3_DEF_ARRAY) {
-    DM3uint32 array_type = dm3_uint32(dm3, def[1]);
-    DM3uint32 array_len = dm3_uint32(dm3, def[2]);
-    if (array_type > DM3_DEF_OCTET)
-      fatal("TODO: Implement complex arrays\n");
+    DM3uint32 array_type_len;
+    DM3uint32 array_type_def_len = *def_len - 1;
+    DM3uint32 array_len;
 
-    printf("array %d of %s\n", array_len, def_names[array_type]);
-    return array_len * def_lens[array_type];
+    printf("array of ");
+    array_type_len = dump_dm3_data_definition(
+        dm3, def + 1, &array_type_def_len);
+    array_len = dm3_uint32(dm3, def[1 + array_type_def_len]);
+    printf("  -- %d elements\n", array_len);
+    return array_len * array_type_len;
   } else {
     if (def0 > DM3_DEF_OCTET || def0 <= 1)
       fatal("Unexpected def %d\n", def0);
     printf("%s\n", def_names[def0]);
+    *def_len = 1;
     return def_lens[def0];
   }
 }
@@ -140,7 +150,7 @@ static uint32_t dump_dm3_tag_data(
   for (int i = 0; i < def_len; ++i)
     printf(" %d", dm3_uint32(dm3, data->definition[i]));
   printf("\n");
-  return data_size + dump_dm3_data_definition(dm3, data->definition, def_len);
+  return data_size + dump_dm3_data_definition(dm3, data->definition, &def_len);
 }
 
 // Returns the size of |tag|.
