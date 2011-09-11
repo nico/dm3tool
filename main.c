@@ -16,9 +16,12 @@ clang -o dm3tool -Wall main.c
 
 #include "dm3.h"
 
+static _Bool verbose = 0;
+
 static struct option options[] = {
   { "dump", no_argument, NULL, 'd' },
   { "help", no_argument, NULL, 'h' },
+  { "verbose", no_argument, NULL, 'v' },
   { }
 };
 
@@ -29,6 +32,7 @@ static void usage() {
 "options:\n"
 "  -o FILE  write image data to FILE\n"
 "  -d       dump file tree to stdout\n"
+"  -v       verbose output\n"
           );
 }
 
@@ -133,7 +137,7 @@ static uint32_t dump_dm3_data_definition(
 
     iprintf(indent, "array of ");
     array_type_len = dump_dm3_data_definition(
-        dm3, def + 1, &array_type_def_len, indent + 1);
+        dm3, def + 1, &array_type_def_len, /*indent=*/0);
     array_len = dm3_uint32(dm3, def[1 + array_type_def_len]);
     iprintf(indent, "  -- %d elements\n", array_len);
     return array_len * array_type_len;
@@ -152,13 +156,17 @@ static uint32_t dump_dm3_tag_data(
   uint32_t def_len = dm3_uint32(dm3, data->definition_length);
   uint32_t data_size = sizeof(*data) + def_len * sizeof(DM3uint32);
 
-  iprintf(indent, "Tag: %c%c%c%c\n",
-      data->tag[0], data->tag[1], data->tag[2], data->tag[3]);
-  iprintf(indent, "Definition length: %d\n", def_len);
-  iprintf(indent, "Definition:");
-  for (int i = 0; i < def_len; ++i)
+  if (verbose) iprintf(indent, "Tag Data\n");
+  if (verbose) {
+    iprintf(indent, "Tag: %c%c%c%c\n",
+        data->tag[0], data->tag[1], data->tag[2], data->tag[3]);
+  }
+  if (verbose) iprintf(indent, "Definition length: %d\n", def_len);
+  if (verbose) iprintf(indent, "Definition:");
+  if (verbose) for (int i = 0; i < def_len; ++i) {
     printf(" %d", dm3_uint32(dm3, data->definition[i]));
-  printf("\n");
+  }
+  if (verbose) printf("\n");
   return data_size +
       dump_dm3_data_definition(dm3, data->definition, &def_len, indent);
 }
@@ -172,23 +180,21 @@ static uint32_t dump_dm3_tag_entry(
   uint16_t label_len = dm3_uint16(dm3, tag->label_length);
   uint32_t tag_size = sizeof(*tag) + label_len;
 
-  iprintf(indent, "Type: %d\n", tag->type);
-  iprintf(indent, "Label length: %d\n", label_len);
-  iprintf(indent, "Label: ");
+  if (verbose) iprintf(indent, "Type: %d\n", tag->type);
+  if (verbose) iprintf(indent, "Label length: %d\n", label_len);
+  iprintf(indent, "Label: \'");
   for (int i = 0; i < label_len; ++i)
     printf("%c", tag->label[i]);
-  printf("\n");
+  printf("\'\n");
 
   switch (tag->type) {
     case DM3_TAG_ENTRY_TYPE_TAG_GROUP:
-      iprintf(indent, "Tag Group\n");
       tag_group = (struct DM3TagGroup*)(tag->label + label_len);
       return tag_size + dump_dm3_tag_group(dm3, tag_group, indent + 1);
       break;
     case DM3_TAG_ENTRY_TYPE_DATA:
-      iprintf(indent, "Tag Data\n");
       tag_data = (struct DM3TagData*)(tag->label + label_len);
-      return tag_size + dump_dm3_tag_data(dm3, tag_data, indent);
+      return tag_size + dump_dm3_tag_data(dm3, tag_data, indent + 1);
       break;
     default:
       fatal("Unknown tag type %d\n", tag->type);
@@ -203,13 +209,14 @@ static uint32_t dump_dm3_tag_group(
   uint8_t* tag_data = (uint8_t*)tags->tags;
   uint32_t num_tags = dm3_uint32(dm3, tags->num_tags);
 
-  iprintf(indent, "Sorted: %d\n", tags->is_sorted);
-  iprintf(indent, "Open: %d\n", tags->is_open);
+  iprintf(indent, "Tag Group\n");
+  if (verbose) iprintf(indent, "Sorted: %d\n", tags->is_sorted);
+  if (verbose) iprintf(indent, "Open: %d\n", tags->is_open);
   iprintf(indent, "Number of tags: %d\n", num_tags);
 
   for (int i = 0; i < num_tags; ++i) {
     struct DM3TagEntry* cur_tag = (struct DM3TagEntry*)tag_data;
-    uint32_t tag_size = dump_dm3_tag_entry(dm3, cur_tag, indent);
+    uint32_t tag_size = dump_dm3_tag_entry(dm3, cur_tag, indent + 1);
     tag_data += tag_size;
   }
   return sizeof(*tags) + tag_data - (uint8_t*)tags->tags;
@@ -218,12 +225,12 @@ static uint32_t dump_dm3_tag_group(
 static void dump_dm3(struct DM3Image* dm3) {
   uint32_t version = dm3_uint32(dm3, dm3->version);
   printf("Version: %u\n", version);
-  printf("Length: %u\n", dm3_uint32(dm3, dm3->length));
-  printf("Is little-endian: %u\n", dm3_uint32(dm3, dm3->is_little_endian));
+  if (verbose) printf("Length: %u\n", dm3_uint32(dm3, dm3->length));
+  if (verbose)
+    printf("Is little-endian: %u\n", dm3_uint32(dm3, dm3->is_little_endian));
   if (version != 3)
     fatal("Unsupported file version\n");
   printf("------\n");
-  printf("Tag Group\n");
   dump_dm3_tag_group(dm3, &dm3->tag_group, /*indent=*/0);
 }
 
@@ -238,13 +245,16 @@ int main(int argc, char* argv[]) {
   const char* out_name = NULL;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "o:dh", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "o:dhv", options, NULL)) != -1) {
     switch (opt) {
       case 'd':
         do_dump = 1;
         break;
       case 'o':
         out_name = optarg;
+        break;
+      case 'v':
+        verbose = 1;
         break;
       case 'h':
       default:
