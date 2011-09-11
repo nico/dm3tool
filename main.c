@@ -100,7 +100,7 @@ static uint32_t dump_dm3_data_definition(
           dm3, def + 4 + 2 * i, def_len - 4 - 2 * i);
     }
     printf("}\n");
-    
+    return size;
   } else if (def0 == DM3_DEF_STRING) {
     DM3uint32 str_len;
     if (def_len != 2)
@@ -110,19 +110,21 @@ static uint32_t dump_dm3_data_definition(
     return 2 * str_len;
   } else if (def0 == DM3_DEF_ARRAY) {
     fatal("TODO: implement arrays\n");
+    return -1;
   } else {
     if (def0 > DM3_DEF_OCTET || def0 <= 1)
       fatal("Unexpected def %d\n", def0);
     printf("%s\n", def_names[def0]);
     return def_lens[def0];
   }
-  return 0;  // Unreached.
 }
 
 // Returns the size of |data|.
 static uint32_t dump_dm3_tag_data(
     struct DM3Image* dm3, struct DM3TagData* data) {
   uint32_t def_len = dm3_uint32(dm3, data->definition_length);
+  uint32_t data_size = sizeof(*data) + def_len * sizeof(DM3uint32);
+
   printf("Tag: %c%c%c%c\n",
       data->tag[0], data->tag[1], data->tag[2], data->tag[3]);
   printf("Definition length: %d\n", def_len);
@@ -130,7 +132,7 @@ static uint32_t dump_dm3_tag_data(
   for (int i = 0; i < def_len; ++i)
     printf(" %d", dm3_uint32(dm3, data->definition[i]));
   printf("\n");
-  return dump_dm3_data_definition(dm3, data->definition, def_len);
+  return data_size + dump_dm3_data_definition(dm3, data->definition, def_len);
 }
 
 // Returns the size of |tag|.
@@ -140,6 +142,8 @@ static uint32_t dump_dm3_tag_entry(
   struct DM3TagGroup* tag_group;
 
   uint16_t label_len = dm3_uint16(dm3, tag->label_length);
+  uint32_t tag_size = sizeof(*tag) + label_len;
+
   printf("Type: %d\n", tag->type);
   printf("Label length: %d\n", label_len);
   printf("Label: ");
@@ -150,11 +154,11 @@ static uint32_t dump_dm3_tag_entry(
   switch (tag->type) {
     case DM3_TAG_ENTRY_TYPE_TAG_GROUP:
       tag_group = (struct DM3TagGroup*)(tag->label + label_len);
-      return sizeof(*tag) + dump_dm3_tag_group(dm3, tag_group);
+      return tag_size + dump_dm3_tag_group(dm3, tag_group);
       break;
     case DM3_TAG_ENTRY_TYPE_DATA:
       tag_data = (struct DM3TagData*)(tag->label + label_len);
-      return sizeof(*tag) + dump_dm3_tag_data(dm3, tag_data);
+      return tag_size + dump_dm3_tag_data(dm3, tag_data);
       break;
     default:
       fatal("Unknown tag type %d\n", tag->type);
@@ -173,9 +177,10 @@ static uint32_t dump_dm3_tag_group(
   printf("Open: %d\n", tags->is_open);
   printf("Number of tags: %d\n", num_tags);
 
-  for (int i = 0; i < 1 /*num_tags*/; ++i) {
+  for (int i = 0; i < 2 /*num_tags*/; ++i) {
     struct DM3TagEntry* cur_tag = (struct DM3TagEntry*)tag_data;
-    tag_data += dump_dm3_tag_entry(dm3, cur_tag);
+    uint32_t tag_size = dump_dm3_tag_entry(dm3, cur_tag);
+    tag_data += tag_size;
   }
   return sizeof(*tags) + tag_data - (uint8_t*)tags->tags;
 }
