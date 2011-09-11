@@ -33,7 +33,7 @@ struct DM3TagGroup {
 struct DM3Image {
   DM3uint32 version;
   DM3uint32 length;
-  DM3uint32 is_little_endian;
+  DM3uint32 is_little_endian;  // This really means something else.
   struct DM3TagGroup tag_group;
 };
 
