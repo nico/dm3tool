@@ -94,8 +94,11 @@ static uint32_t dump_dm3_data_definition(
     DM3uint32 struct_field_count = dm3_uint32(dm3, def[2]);
     printf("struct with %d fields: {\n", struct_field_count);
     for (int i = 0; i < struct_field_count; ++i) {
+      DM3uint32 field_type= dm3_uint32(dm3, def[4 + 2 * i]);
+      if (field_type > DM3_DEF_OCTET)
+        fatal("TODO: Implement complex structs\n");
+      
       printf("  ");
-      // TODO: support complex fields.
       size += dump_dm3_data_definition(
           dm3, def + 4 + 2 * i, def_len - 4 - 2 * i);
     }
@@ -109,8 +112,13 @@ static uint32_t dump_dm3_data_definition(
     printf("String of length %d\n", str_len);
     return 2 * str_len;
   } else if (def0 == DM3_DEF_ARRAY) {
-    fatal("TODO: implement arrays\n");
-    return -1;
+    DM3uint32 array_type = dm3_uint32(dm3, def[1]);
+    DM3uint32 array_len = dm3_uint32(dm3, def[2]);
+    if (array_type > DM3_DEF_OCTET)
+      fatal("TODO: Implement complex arrays\n");
+
+    printf("array %d of %s\n", array_len, def_names[array_type]);
+    return array_len * def_lens[array_type];
   } else {
     if (def0 > DM3_DEF_OCTET || def0 <= 1)
       fatal("Unexpected def %d\n", def0);
@@ -177,7 +185,7 @@ static uint32_t dump_dm3_tag_group(
   printf("Open: %d\n", tags->is_open);
   printf("Number of tags: %d\n", num_tags);
 
-  for (int i = 0; i < 2 /*num_tags*/; ++i) {
+  for (int i = 0; i < num_tags; ++i) {
     struct DM3TagEntry* cur_tag = (struct DM3TagEntry*)tag_data;
     uint32_t tag_size = dump_dm3_tag_entry(dm3, cur_tag);
     tag_data += tag_size;
