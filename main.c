@@ -209,10 +209,10 @@ static uint32_t dump_dm3_tag_group(
   uint8_t* tag_data = (uint8_t*)tags->tags;
   uint32_t num_tags = dm3_uint32(dm3, tags->num_tags);
 
-  iprintf(indent, "Tag Group\n");
+  if (verbose) iprintf(indent, "Tag Group\n");
   if (verbose) iprintf(indent, "Sorted: %d\n", tags->is_sorted);
   if (verbose) iprintf(indent, "Open: %d\n", tags->is_open);
-  iprintf(indent, "Number of tags: %d\n", num_tags);
+  if (verbose) iprintf(indent, "Number of tags: %d\n", num_tags);
 
   for (int i = 0; i < num_tags; ++i) {
     struct DM3TagEntry* cur_tag = (struct DM3TagEntry*)tag_data;
