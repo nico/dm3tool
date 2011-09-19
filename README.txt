@@ -11,3 +11,20 @@ A (very incomplete) tool to read the
     options:
       -d       dump file tree to stdout
       -v       verbose output
+
+
+Image data seems to be in
+
+    [
+      'ImageList': [
+        {
+          'ImageData': {
+            'Data': []
+            'DataType': number,
+            'Dimensions': [w, h],
+            'PixelDepth': number,
+          }
+        }
+        'Name': array of ushort (utf16 data)
+      ]
+    ]
