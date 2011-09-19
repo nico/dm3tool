@@ -54,13 +54,13 @@ static void iprintf(int indent, const char* msg, ...) {
   va_end(args);
 }
 
-static DM3uint16 dm3_uint16(struct DM3Image* dm3, DM3uint16 i) {
+static uint16_t dm3_uint16(struct DM3Image* dm3, uint16_t i) {
   if (!dm3->is_little_endian || dm3->is_little_endian == 0x01000000)
     return ntohs(i);
   return i;  // Assumes a little-endian machine.
 }
 
-static DM3uint32 dm3_uint32(struct DM3Image* dm3, DM3uint32 i) {
+static uint32_t dm3_uint32(struct DM3Image* dm3, uint32_t i) {
   if (!dm3->is_little_endian || dm3->is_little_endian == 0x01000000)
     return ntohl(i);
   return i;  // Assumes a little-endian machine.
@@ -73,8 +73,8 @@ static uint32_t dump_dm3_tag_group(
 // |def_len|: (in) Number of elements in |def|.
 //            (out) Number of elements read from |def|.
 static uint32_t dump_dm3_data_definition(
-    struct DM3Image* dm3, DM3uint32 def[], DM3uint32* def_len, int indent) {
-  DM3uint32 def0 = dm3_uint32(dm3, def[0]);
+    struct DM3Image* dm3, uint32_t def[], uint32_t* def_len, int indent) {
+  uint32_t def0 = dm3_uint32(dm3, def[0]);
   static const char const* def_names[] = {
     "unknown 0",
     "unknown 1",
@@ -106,13 +106,13 @@ static uint32_t dump_dm3_data_definition(
 
   if (def0 == DM3_DEF_STRUCT) {
     uint32_t size = 0;
-    //DM3uint32 struct_name_len = dm3_uint32(dm3, def[1]);
-    DM3uint32 struct_def_len = 3;
-    DM3uint32 struct_field_count = dm3_uint32(dm3, def[2]);
+    //uint32_t struct_name_len = dm3_uint32(dm3, def[1]);
+    uint32_t struct_def_len = 3;
+    uint32_t struct_field_count = dm3_uint32(dm3, def[2]);
     iprintf(indent, "struct with %d fields: {\n", struct_field_count);
     for (int i = 0; i < struct_field_count; ++i) {
-      DM3uint32 field_type = dm3_uint32(dm3, def[4 + 2 * i]);
-      DM3uint32 field_def_len = *def_len - 4 - 2 * i;
+      uint32_t field_type = dm3_uint32(dm3, def[4 + 2 * i]);
+      uint32_t field_def_len = *def_len - 4 - 2 * i;
       if (field_type > DM3_DEF_OCTET)
         fatal("TODO: Implement complex structs\n");
       
@@ -124,16 +124,16 @@ static uint32_t dump_dm3_data_definition(
     *def_len = struct_def_len;
     return size;
   } else if (def0 == DM3_DEF_STRING) {
-    DM3uint32 str_len;
+    uint32_t str_len;
     if (*def_len != 2)
       fatal("Unexpected string def_len %d\n", *def_len);
     str_len = dm3_uint32(dm3, def[1]);
     iprintf(indent, "String of length %d\n", str_len);
     return 2 * str_len;
   } else if (def0 == DM3_DEF_ARRAY) {
-    DM3uint32 array_type_len;
-    DM3uint32 array_type_def_len = *def_len - 1;
-    DM3uint32 array_len;
+    uint32_t array_type_len;
+    uint32_t array_type_def_len = *def_len - 1;
+    uint32_t array_len;
 
     iprintf(indent, "array of ");
     array_type_len = dump_dm3_data_definition(
@@ -154,7 +154,7 @@ static uint32_t dump_dm3_data_definition(
 static uint32_t dump_dm3_tag_data(
     struct DM3Image* dm3, struct DM3TagData* data, int indent) {
   uint32_t def_len = dm3_uint32(dm3, data->definition_length);
-  uint32_t data_size = sizeof(*data) + def_len * sizeof(DM3uint32);
+  uint32_t data_size = sizeof(*data) + def_len * sizeof(uint32_t);
 
   if (verbose) iprintf(indent, "Tag Data\n");
   if (verbose) {

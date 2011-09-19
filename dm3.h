@@ -1,12 +1,9 @@
-#ifndef _DM3_H_
-#define _DM3_H_
+#ifndef DM3_H_
+#define DM3_H_
 
-typedef unsigned char  DM3uint8;
-typedef unsigned short DM3uint16;
-typedef unsigned int   DM3uint32;
+#include <stdint.h>
 
-#pragma pack(push, 1)
-
+#pragma pack(push, 1)  // This is not portable.
 
 #define DM3_DEF_SHORT   2
 #define DM3_DEF_LONG    3
@@ -34,9 +31,9 @@ typedef unsigned int   DM3uint32;
 //   array_length
 
 struct DM3TagData {
-  DM3uint8 tag[4];  // Always '%%%%'.
-  DM3uint32 definition_length;
-  DM3uint32 definition[];
+  uint8_t tag[4];  // Always '%%%%'.
+  uint32_t definition_length;
+  uint32_t definition[];
   // Followed by the actual data.
 };
 
@@ -44,27 +41,27 @@ struct DM3TagData {
 #define DM3_TAG_ENTRY_TYPE_DATA      21
 
 struct DM3TagEntry {
-  DM3uint8 type;
-  DM3uint16 label_length;
-  DM3uint8 label[];
+  uint8_t type;
+  uint16_t label_length;
+  uint8_t label[];
   // Followed by a DM3TagGroup if |type == DM3_TAG_ENTRY_TYPE_TAG_GROUP|
   // or a DM3TagData if |type == DM3_TAG_ENTRY_TYPE_DATA|.
 };
 
 struct DM3TagGroup {
-  DM3uint8 is_sorted;
-  DM3uint8 is_open;
-  DM3uint32 num_tags;
+  uint8_t is_sorted;
+  uint8_t is_open;
+  uint32_t num_tags;
   struct DM3TagEntry tags[];
 };
 
 struct DM3Image {
-  DM3uint32 version;
-  DM3uint32 length;
-  DM3uint32 is_little_endian;  // This really means something else.
+  uint32_t version;
+  uint32_t length;
+  uint32_t is_little_endian;  // This really means something else.
   struct DM3TagGroup tag_group;
 };
 
 #pragma pack(pop)
 
-#endif  // _DM3_H_
+#endif  // DM3_H_
